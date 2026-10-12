@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Network & IP Inspector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0F172A;
+      --card-bg: #1E293B;
+      --card-border: #334155;
+      --text-main: #F8FAFC;
+      --text-sub: #94A3B8;
+      --accent: #38BDF8;
+      --success: #34D399;
+      --warning: #FBBF24;
+      --danger: #F87171;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Prompt', sans-serif; }
+    body { background-color: var(--bg); color: var(--text-main); padding: 20px; max-width: 600px; margin: 0 auto; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    h1 { font-size: 1.25rem; font-weight: 600; color: var(--text-main); }
+    .badge { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; }
+    .badge-online { background: rgba(52, 211, 153, 0.15); color: var(--success); border: 1px solid var(--success); }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 20px; }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; }
+    .card-title { font-size: 0.85rem; color: var(--text-sub); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .ip-display { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 600; word-break: break-all; color: var(--accent); }
+    .status-pill { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+    .pill-yes { background: rgba(52, 211, 153, 0.2); color: var(--success); }
+    .pill-no { background: rgba(248, 113, 113, 0.2); color: var(--danger); }
+
+    .info-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--card-border); padding-top: 10px; }
+    .info-row { display: flex; justify-content: space-between; font-size: 0.85rem; }
+    .info-label { color: var(--text-sub); }
+    .info-value { font-family: 'JetBrains Mono', monospace; font-weight: 500; text-align: right; }
+
+    /* Search Section */
+    .search-box { display: flex; gap: 8px; margin-bottom: 20px; }
+    .search-input { flex: 1; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 14px; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; outline: none; }
+    .search-input:focus { border-color: var(--accent); }
+    .btn-search { background: var(--accent); color: #0F172A; border: none; border-radius: 10px; padding: 0 18px; font-weight: 600; cursor: pointer; }
+
+    .btn-refresh { width: 100%; background: #334155; color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: 500; cursor: pointer; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Network Inspector</h1>
+      <span style="font-size: 0.8rem; color: var(--text-sub);">Dual-Stack & Network Lookup</span>
+    </div>
+    <span class="badge badge-online">ONLINE</span>
+  </header>
+
+  <!-- Search Lookup -->
+  <div class="search-box">
+    <input type="text" id="targetInput" class="search-input" placeholder="ใส่ IP หรือ Domain เพื่อเช็ก...">
+    <button class="btn-search" onclick="lookupTarget()">ตรวจ</button>
+  </div>
+
+  <div class="grid">
+    <!-- IPv4 Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>PUBLIC IPv4</span>
+        <span class="status-pill pill-yes" id="v4Status">กำลังตรวจ...</span>
+      </div>
+      <div class="ip-display" id="v4Address">-</div>
+    </div>
+
+    <!-- IPv6 Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>PUBLIC IPv6</span>
+        <span class="status-pill pill-no" id="v6Status">กำลังตรวจ...</span>
+      </div>
+      <div class="ip-display" id="v6Address" style="font-size: 0.95rem;">-</div>
+    </div>
+
+    <!-- Network Details Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>NETWORK & ROUTING INTEL</span>
+        <span style="font-size: 0.75rem; color: var(--text-sub);" id="sourceType">My Connection</span>
+      </div>
+      <div class="info-list">
+        <div class="info-row">
+          <span class="info-label">ISP / Provider:</span>
+          <span class="info-value" id="infoIsp">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">ASN:</span>
+          <span class="info-value" id="infoAsn">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Organization:</span>
+          <span class="info-value" id="infoOrg">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Location:</span>
+          <span class="info-value" id="infoLocation">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Reverse DNS / Host:</span>
+          <span class="info-value" id="infoHost">-</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-refresh" onclick="checkCurrentConnection()">🔄 รีเฟรชสถานะเครือข่ายปัจจุบัน</button>
+
+  <script>
+    async function checkCurrentConnection() {
+      document.getElementById('sourceType').innerText = 'My Connection';
+      document.getElementById('v4Address').innerText = 'ตรวจหา...';
+      document.getElementById('v6Address').innerText = 'ตรวจหา...';
+
+      // 1. ตรวจสอบ IPv4
+      try {
+        const resV4 = await fetch('https://api4.ipify.org?format=json', { cache: 'no-cache' });
+        const dataV4 = await resV4.json();
+        document.getElementById('v4Address').innerText = dataV4.ip;
+        document.getElementById('v4Status').innerText = 'CONNECTED';
+        document.getElementById('v4Status').className = 'status-pill pill-yes';
+        
+        // ดึงข้อมูล ISP/ASN จาก IPv4
+        fetchDetails(dataV4.ip);
+      } catch (err) {
+        document.getElementById('v4Address').innerText = 'Not Detected';
+        document.getElementById('v4Status').innerText = 'FAILED';
+        document.getElementById('v4Status').className = 'status-pill pill-no';
+      }
+
+      // 2. ตรวจสอบ IPv6 (ถ้าเครือข่ายไม่มี IPv6 fetch นี้จะ timeout/fail)
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 วินาที timeout
+        const resV6 = await fetch('https://api6.ipify.org?format=json', { 
+          cache: 'no-cache',
+          signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        const dataV6 = await resV6.json();
+        document.getElementById('v6Address').innerText = dataV6.ip;
+        document.getElementById('v6Status').innerText = 'CONNECTED';
+        document.getElementById('v6Status').className = 'status-pill pill-yes';
+      } catch (err) {
+        document.getElementById('v6Address').innerText = 'No IPv6 Detected';
+        document.getElementById('v6Status').innerText = 'NOT SUPPORTED';
+        document.getElementById('v6Status').className = 'status-pill pill-no';
+      }
+    }
+
+    async function fetchDetails(ip) {
+      try {
+        // ใช้ ipapi.co เพื่อดึง ASN, Org, ISP, City, Country แบบฟรี
+        const res = await fetch(`https://ipapi.co/${ip}/json/`);
+        const data = await res.json();
+        
+        document.getElementById('infoIsp').innerText = data.org || data.asn || '-';
+        document.getElementById('infoAsn').innerText = data.asn || '-';
+        document.getElementById('infoOrg').innerText = data.org || '-';
+        document.getElementById('infoLocation').innerText = `${data.city || ''}, ${data.country_name || ''}`;
+        document.getElementById('infoHost').innerText = data.hostname || '-';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function lookupTarget() {
+      const target = document.getElementById('targetInput').value.trim();
+      if (!target) return alert('กรุณากรอก IP หรือ Hostname');
+
+      document.getElementById('sourceType').innerText = `Target: ${target}`;
+      document.getElementById('infoIsp').innerText = 'กำลังค้นหา...';
+      document.getElementById('infoAsn').innerText = 'กำลังค้นหา...';
+      document.getElementById('infoOrg').innerText = 'กำลังค้นหา...';
+      document.getElementById('infoLocation').innerText = 'กำลังค้นหา...';
+      document.getElementById('infoHost').innerText = 'กำลังค้นหา...';
+
+      try {
+        const res = await fetch(`https://ipapi.co/${target}/json/`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.reason || 'ค้นหาไม่สำเร็จ');
+
+        document.getElementById('infoIsp').innerText = data.org || data.asn || '-';
+        document.getElementById('infoAsn').innerText = data.asn || '-';
+        document.getElementById('infoOrg').innerText = data.org || '-';
+        document.getElementById('infoLocation').innerText = `${data.city || ''}, ${data.country_name || ''}`;
+        document.getElementById('infoHost').innerText = data.hostname || target;
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการ Lookup: ' + err.message);
+      }
+    }
+
+    // เริ่มทำงานทันทีที่เปิดหน้าเว็บ
+    checkCurrentConnection();
+  </script>
+</body>
+</html>
